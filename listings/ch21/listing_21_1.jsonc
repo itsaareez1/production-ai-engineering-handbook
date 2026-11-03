@@ -1,0 +1,79 @@
+// Listing 21.1. MCP JSON-RPC messages for tool discovery and
+// invocation.
+//
+// Chapter 21, The Model Context Protocol. Reviewed for correctness
+// against the MCP specification (revision 2026-07-28, checked
+// September 2026); not executed. The exact `_meta` keys and header
+// names should be confirmed against the specification text current at
+// implementation time.
+//
+// Check the structure with:
+//   python listings/ch21/validate_21_1.py
+
+// Client -> Server: discover tools. Under revision 2026-07-28 the
+// core is stateless: every request carries the protocol version in
+// an MCP-Protocol-Version header and repeats it, with client
+// identity and capabilities, in params._meta.
+POST /mcp HTTP/1.1
+Content-Type: application/json
+MCP-Protocol-Version: 2026-07-28
+Mcp-Method: tools/list
+
+{"jsonrpc": "2.0", "id": 1, "method": "tools/list",
+ "params": {"_meta": {
+     "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+     "io.modelcontextprotocol/clientInfo": {"name": "atlas",
+                                            "version": "1.0.0"},
+     "io.modelcontextprotocol/clientCapabilities": {}}}}
+
+// Server -> Client. resultType marks a complete result; ttlMs and
+// cacheScope let a gateway cache the list, which no longer varies
+// per connection.
+{"jsonrpc": "2.0", "id": 1, "result": {
+  "resultType": "complete",
+  "tools": [{
+    "name": "lookup_ticket",
+    "description": "Return status and summary of a support ticket "
+                   "by id.",
+    "inputSchema": {"type": "object", "required": ["ticket_id"],
+                    "properties": {"ticket_id": {"type": "string"}}}
+  }],
+  "ttlMs": 300000,
+  "cacheScope": "public"
+}}
+
+// Client -> Server: invoke, after the host has validated the
+// arguments and authorized the caller (Chapter 19). Mcp-Name lets a
+// gateway route and rate-limit without parsing the body.
+POST /mcp HTTP/1.1
+Content-Type: application/json
+MCP-Protocol-Version: 2026-07-28
+Mcp-Method: tools/call
+Mcp-Name: lookup_ticket
+
+{"jsonrpc": "2.0", "id": 2, "method": "tools/call",
+ "params": {"name": "lookup_ticket",
+            "arguments": {"ticket_id": "T-1042"},
+            "_meta": {
+     "io.modelcontextprotocol/protocolVersion": "2026-07-28",
+     "io.modelcontextprotocol/clientInfo": {"name": "atlas",
+                                            "version": "1.0.0"},
+     "io.modelcontextprotocol/clientCapabilities": {}}}}
+
+// Server -> Client. The content is untrusted, exactly as a locally
+// executed tool's result would be, and is labeled before it
+// re-enters the context.
+{"jsonrpc": "2.0", "id": 2, "result": {
+  "resultType": "complete",
+  "content": [{
+    "type": "text",
+    "text": "{\"status\": \"open\", \"summary\": \"VPN drops\"}"
+  }],
+  "isError": false
+}}
+
+// A version mismatch between the header and params._meta is a
+// protocol error, not a negotiation:
+// {"jsonrpc": "2.0", "id": 3, "error": {"code": -32020,
+//  "message": "HeaderMismatch: MCP-Protocol-Version does not match
+//              params._meta protocolVersion"}}
