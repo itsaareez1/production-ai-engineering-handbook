@@ -1,13 +1,8 @@
-"""Listing 41.1. Trace redaction with stable pseudonyms and a
-layered retention policy.
+"""Listing 41.1. Trace redaction with stable, versioned pseudonyms, a
+key that must be configured, and a layered retention policy.
 
-Chapter 41, Data Protection and Privacy. Verified by execution.
+Chapter 41, Data Security and Privacy. Verified by execution.
 Run with: python run.py 41.1
-
-NOTE: this file is the listing exactly as printed. Its SECRET falls
-back to a hardcoded string when TRACE_HMAC_KEY is unset, which the
-comment forbids but the code permits -- see ERRATA.md, ERR-03. The
-corrected version is listing_41_1_corrected.py in this directory.
 """
 import hashlib
 import hmac
@@ -21,20 +16,30 @@ PATTERNS = {
     "CARD": re.compile(r"\b(?:\d[ -]?){13,16}\b"),
     "IBAN": re.compile(r"\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b"),
 }
-# The key comes from the secrets manager in production; the fallback
-# is for local runs only and must never reach staging or production.
-SECRET = os.environ.get("TRACE_HMAC_KEY", "local-dev-only").encode()
 
 
-def pseudonym(kind: str, value: str) -> str:
-    tag = hmac.new(SECRET, value.encode(),
-                   hashlib.sha256).hexdigest()[:8]
-    return f"<{kind}:{tag}>"
+def load_key() -> "tuple[bytes, str]":
+    """The key comes from the secrets manager. There is deliberately
+    no silent fallback: a known key would make every pseudonym
+    reversible by anyone who has it."""
+    key = os.environ.get("TRACE_HMAC_KEY")
+    if key:
+        return key.encode(), os.environ.get("TRACE_KEY_VERSION", "v1")
+    if os.environ.get("TRACE_ALLOW_DEV_KEY") == "1":
+        return b"local-dev-only", "dev"
+    raise RuntimeError("TRACE_HMAC_KEY is not set; refusing to "
+                       "pseudonymize with a known key")
 
 
-def redact(text: str) -> str:
+def pseudonym(kind: str, value: str, key: bytes, ver: str) -> str:
+    tag = hmac.new(key, value.encode(), hashlib.sha256).hexdigest()
+    return f"<{kind}:{ver}:{tag[:12]}>"
+
+
+def redact(text: str, key: bytes, ver: str) -> str:
     for kind, pat in PATTERNS.items():
-        text = pat.sub(lambda m: pseudonym(kind, m.group(0)), text)
+        text = pat.sub(
+            lambda m: pseudonym(kind, m.group(0), key, ver), text)
     return text
 
 
@@ -54,14 +59,24 @@ def apply_retention(record: dict, now: float) -> dict:
 
 
 if __name__ == "__main__":
+    os.environ.pop("TRACE_HMAC_KEY", None)
+    try:
+        load_key()
+    except RuntimeError as e:
+        print("no key:", e)
+
+    os.environ["TRACE_HMAC_KEY"] = "from-the-secrets-manager"
+    key, ver = load_key()
     q = ("Can you email alice.w@example.com and call "
          "+44 20 7946 0958 about my claim?")
-    print(redact(q))
+    print(redact(q, key, ver))
     # The same address produces the same pseudonym.
-    print(redact("Reply to alice.w@example.com again."))
+    print(redact("Reply to alice.w@example.com again.", key, ver))
+
     rec = {"request_id": "r-9", "t": time.time() - 40 * 86400,
            "user": "u-17",
-           "content": {"question": redact(q), "answer": "..."},
+           "content": {"question": redact(q, key, ver),
+                       "answer": "..."},
            "restricted_content": {"passage": "salary band data"},
            "context_labels": ["policy-pay/3.1@2026-05-02"],
            "taxonomy": "no-failure"}

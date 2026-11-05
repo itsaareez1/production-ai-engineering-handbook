@@ -1,19 +1,13 @@
 """Listing 35.1. Evaluation harness: deterministic grading, a model
 judge, judge calibration against human labels (agreement and Cohen's
-kappa), and per-category reporting.
+kappa) on a stratified sample, and per-category reporting.
 
-Chapter 35, Evaluating Generated Output.
+Chapter 35, Measuring AI Quality.
 Verified by execution with a stubbed system and judge.
 Run with: python run.py 35.1
-
-NOTE: this file is the listing exactly as printed, so that running it
-reproduces the output the chapter describes. Its calibration subset
-is drawn with `items[:200]`, which selects every "leave" item and no
-"expenses" item at all -- see ERRATA.md, ERR-02. The corrected
-version is listing_35_1_corrected.py in this directory.
 """
 import random
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 
 def deterministic_grade(output: dict, ref: dict,
@@ -42,6 +36,34 @@ def cohen_kappa(a: list, b: list) -> float:
     pb = sum(b) / n
     pe = pa * pb + (1 - pa) * (1 - pb)
     return (po - pe) / (1 - pe) if pe < 1 else 1.0
+
+
+def stratified_calibration(items, fraction=0.5, seed=11):
+    """Sample every category in proportion, so agreement is measured
+    on the same mix the judge will then be trusted to score."""
+    by_cat = defaultdict(list)
+    for it in items:
+        by_cat[it["meta"]["category"]].append(it)
+    calib = set()
+    for cat, group in sorted(by_cat.items()):
+        group = list(group)
+        random.Random(f"{seed}-{cat}").shuffle(group)
+        take = max(1, round(len(group) * fraction))
+        calib.update(it["id"] for it in group[:take])
+    return calib
+
+
+def check_calibration(items, calib_ids, tolerance=0.05):
+    """Refuse a calibration subset whose mix differs from the set."""
+    mix = Counter(it["meta"]["category"] for it in items)
+    cal = Counter(it["meta"]["category"] for it in items
+                  if it["id"] in calib_ids)
+    for cat in mix:
+        p_all = mix[cat] / len(items)
+        p_cal = cal[cat] / max(1, len(calib_ids))
+        if abs(p_all - p_cal) > tolerance:
+            raise ValueError(f"calibration mix wrong for {cat!r}: "
+                             f"{p_cal:.2f} vs {p_all:.2f}")
 
 
 class StubJudge:
@@ -93,34 +115,27 @@ def stub_system(item):
             2.1 + rng.random())
 
 
-def build_items(n=300):
+if __name__ == "__main__":
     items = []
-    for i in range(n):
+    for i in range(300):
         cat = "leave" if i < 200 else "expenses"
         p_ok = 0.9 if cat != "expenses" else 0.7
-        human = (1 if random.Random(f"gs-{i:06d}").random() < p_ok
-                 else 0)
+        rng = random.Random(f"gs-{i:06d}")
         items.append({
             "id": f"gs-{i:06d}",
             "reference": {
                 "must_contain_facts": ["five days",
                                        "manager approval"],
                 "must_cite_any_of": ["policy-leave/4.2"],
-                "_human_label": human},
+                "_human_label": int(rng.random() < p_ok)},
             "meta": {"category": cat}})
-    return items
-
-
-def report(per_cat, agree, kappa, cost, lat):
+    calib = stratified_calibration(items)
+    check_calibration(items, calib)
+    per_cat, agree, kappa, cost, lat = evaluate(
+        items, stub_system, StubJudge(), calib)
     for cat, m in per_cat.items():
         summary = {k: f"{sum(v) / len(v):.2f}"
                    for k, v in m.items()}
         print(cat, summary)
     print(f"judge agreement {agree:.2f}, kappa {kappa:.2f} | "
           f"cost/item ${cost:.3f}, latency {lat:.1f}s")
-
-
-if __name__ == "__main__":
-    items = build_items()
-    calib = {it["id"] for it in items[:200]}
-    report(*evaluate(items, stub_system, StubJudge(), calib))

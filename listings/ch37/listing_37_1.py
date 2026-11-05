@@ -12,7 +12,10 @@ def error_budget(slo: float, total_events: int) -> float:
 
 def budget_report(name, slo, total, failures, consumers):
     budget = error_budget(slo, total)
-    used = sum(consumers.values())
+    attributed = sum(consumers.values())
+    if attributed != failures:
+        print(f"  warning: {attributed:,} attributed but "
+              f"{failures:,} observed")
     print(f"{name}: SLO {slo:.1%} over {total:,} events "
           f"-> budget {budget:,.0f} failures")
     print(f"  observed failures {failures:,} "

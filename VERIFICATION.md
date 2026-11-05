@@ -11,7 +11,7 @@ as its label states.
 | | |
 |---|---|
 | Runnable listings | **49 of 49 ran successfully** |
-| Test suite | **106 of 106 passed** |
+| Test suite | **104 of 104 passed** |
 | Listing 21.1 structural check | **23 of 23 assertions passed** |
 | Listing 14.2 against pgvector | **applied and queried successfully** |
 | Listing 44.1 container | **built, started, serves `{"status":"ok"}`** |
@@ -101,14 +101,13 @@ id pairing. It is not a conformance test against a live MCP server.
 
 ### Listing 44.1 — container build and Compose definition
 
-**The file as printed does not start.** `minio/minio` is no longer
-pullable from any public registry, and Compose resolves every image
-before starting anything, so no service starts at all. This is
-recorded as ERR-05 in `../ERRATA.md`, with the substitution applied
-here and the original kept as
-`listings/ch44/docker-compose.as-printed.yml`.
+The manuscript's original Compose file used `minio/minio`, which is
+no longer pullable from any public registry; because Compose resolves
+every image before starting anything, no service started. This was
+ERR-05. The first edition prints the corrected file (an S3-compatible
+SeaweedFS store on the same port), and that file is the one here.
 
-After the substitution, verified end to end:
+Verified end to end:
 
 ```
 $ docker compose build app
@@ -141,12 +140,13 @@ the `/validate` route exercises Chapter 12's validator through
 
 ## Defects found while verifying
 
-Seven are recorded in `../ERRATA.md`. One is blocking (ERR-05, the
-Compose file), two are substantive code defects (ERR-03, an insecure
-HMAC default in the privacy chapter; ERR-02, a calibration subset
-that understates the judge's kappa by 0.07), two are wrong
-explanations of correct code (ERR-01, ERR-04), one strengthens a
-caption (ERR-06), and one is a dead local (ERR-07).
+Seven were recorded in `../ERRATA.md` and all seven are fixed in the
+first edition and in this repository: the Compose image (ERR-05), an
+insecure HMAC default in the privacy chapter (ERR-03, the listing now
+refuses to run without a key), a calibration subset that understated
+the judge's kappa (ERR-02, now stratified; kappa 0.71), two
+explanations corrected to match the code's output (ERR-01, ERR-04), a
+strengthened caption (ERR-06), and a dead local (ERR-07).
 
 Every other listing reproduces the output its chapter describes,
 exactly.
@@ -332,7 +332,7 @@ leaks: ['gs-000000', 'gs-000001', 'gs-000002']
 --- Listing 35.1  (listings/ch35/listing_35_1.py) ---
 leave {'facts': '0.88', 'forbidden': '1.00', 'cites_required': '0.88', 'cites_resolve': '0.88', 'escalation': '1.00', 'judge_correct': '0.81'}
 expenses {'facts': '0.75', 'forbidden': '1.00', 'cites_required': '0.75', 'cites_resolve': '0.75', 'escalation': '1.00', 'judge_correct': '0.70'}
-judge agreement 0.91, kappa 0.64 | cost/item $0.030, latency 2.6s
+judge agreement 0.91, kappa 0.71 | cost/item $0.030, latency 2.6s
 
 --- Listing 36.1  (listings/ch36/listing_36_1.py) ---
 claims 3, supported 0.67, unsupported: ['Contractors are excluded from carry-over.']
@@ -376,8 +376,9 @@ example
 (The ...
 
 --- Listing 41.1  (listings/ch41/listing_41_1.py) ---
-Can you email <EMAIL:59f1bfb5> and call <PHONE:aa272d7e> about my claim?
-Reply to <EMAIL:59f1bfb5> again.
+no key: TRACE_HMAC_KEY is not set; refusing to pseudonymize with a known key
+Can you email <EMAIL:v1:98e4f0390c79> and call <PHONE:v1:d3ff7fc175c0> about my claim?
+Reply to <EMAIL:v1:98e4f0390c79> again.
 ['context_labels', 'request_id', 't', 'taxonomy', 'user']
 
 --- Listing 42.1  (listings/ch42/listing_42_1.py) ---
@@ -391,12 +392,12 @@ ALLOW ok                                                   https://api.ticketing
 ALLOW query stripped (model-controlled parameters removed) https://docs.vendor.example.com/g
 BLOCK blocked address range                                https://169.254.169.254/latest/meta-data/
 BLOCK host not allowlisted                                 https://evil.example/?e=data
-issuance log: [{'tool': 'lookup_ticket', 'user': 'alice', 'scope': 'lookup_ticket:read', 'id': '204f9b155a'}, {'tool': 'draft_ticket', 'user': 'alice', 'denied': 'approval'}]
+issuance log: [{'tool': 'lookup_ticket', 'user': 'alice', 'scope': 'lookup_ticket:read', 'id': '0b6510f935'}, {'tool': 'draft_ticket', 'user': 'alice', 'denied': 'approval'}]
 
 --- Listing 45.1  (listings/ch45/listing_45_1.py) ---
 schema problems: none
 {
- "request_id": "c6d33856",
+ "request_id": "b566bb34",
  "tenant": "acme",
  "code": "2026.09.3",
  "instructions_hash": "a91f",
@@ -473,6 +474,6 @@ v0.4 decision: NO-GO | blocking: ['evaluation: gate_all_artifacts', 'security: c
 {'phase': 'hardening', 'level': 'L2', 'remaining': ['containment_100 (Ch. 39)', 'rollback_4 (Ch. 48)', 'slos (Ch. 37)']}
 {'phase': 'continuous', 'level': 'L5', 'remaining': []}
 
-49 listings in 1.0s
+49 listings in 1.1s
 RESULT: all listings ran successfully
 ```

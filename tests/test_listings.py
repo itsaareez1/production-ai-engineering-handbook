@@ -244,17 +244,8 @@ def test_34_1_oversamples_and_finds_the_leak():
 
 def test_35_1_reports_the_kappa_the_chapter_quotes():
     out = run_listing("35.1")
-    assert "judge agreement 0.91, kappa 0.64" in out
-
-
-def test_35_1_corrected_guard_rejects_the_printed_subset():
-    path = LISTINGS["35.1"].with_name("listing_35_1_corrected.py")
-    proc = subprocess.run(
-        [sys.executable, path.name], cwd=path.parent,
-        capture_output=True, text=True)
-    assert proc.returncode == 0, proc.stderr
-    assert "guard refuses it" in proc.stdout
-    assert "kappa 0.71" in proc.stdout
+    assert "judge agreement 0.91, kappa 0.71" in out
+    assert "leave {" in out and "expenses {" in out
 
 
 def test_36_1_names_the_unsupported_claim():
@@ -292,23 +283,13 @@ def test_40_1_quarantines_three_of_four_documents():
     assert "zero-width characters" in out
 
 
-def test_41_1_pseudonyms_are_stable_and_content_expires():
+def test_41_1_refuses_without_a_key_then_pseudonymizes_stably():
     out = run_listing("41.1").splitlines()
-    token = out[0].split("<EMAIL:")[1].split(">")[0]
-    assert f"<EMAIL:{token}>" in out[1]
-    assert "content" not in out[2]
-    assert "restricted_content" not in out[2]
-
-
-def test_41_1_corrected_refuses_without_a_key():
-    path = LISTINGS["41.1"].with_name("listing_41_1_corrected.py")
-    proc = subprocess.run(
-        [sys.executable, path.name], cwd=path.parent,
-        capture_output=True, text=True)
-    assert proc.returncode == 0, proc.stderr
-    assert "refused: TRACE_HMAC_KEY is not set" in proc.stdout
-    assert "<EMAIL:v1:" in proc.stdout
-    assert "<EMAIL:v2:" in proc.stdout
+    assert "TRACE_HMAC_KEY is not set" in out[0]
+    token = out[1].split("<EMAIL:v1:")[1].split(">")[0]
+    assert f"<EMAIL:v1:{token}>" in out[2]
+    assert "content" not in out[3]
+    assert "restricted_content" not in out[3]
 
 
 def test_42_1_ignores_claims_in_the_body_and_the_model_output():

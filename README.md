@@ -121,13 +121,8 @@ execution*, and `run.py` tells you what each one needs:
   types and id pairing.
 - **44.1** needs Docker. `docker compose build && docker compose up`,
   then `curl localhost:8000/health` returns `{"status":"ok"}`.
-  The Compose file **as printed in the book does not start**: the
-  `minio/minio` image is no longer pullable from any public
-  registry, and Compose resolves all images before starting
-  anything. The working file substitutes an S3-compatible store on
-  the same port; the original is kept as
-  `listings/ch44/docker-compose.as-printed.yml`. See `../ERRATA.md`,
-  ERR-05.
+  The stack runs PostgreSQL with pgvector, Redis, an S3-compatible
+  object store (SeaweedFS), and the API.
 
 All three have been checked despite not being run by `run.py` —
 14.2 applied to PostgreSQL 16 with pgvector 0.8.7, 21.1 against its
@@ -136,27 +131,13 @@ transcripts.
 
 ## Errata
 
-Verifying the book turned up seven defects, recorded in
-`../ERRATA.md` with suggested replacement text. One is blocking
-(ERR-05 above), two are substantive code defects in listings
-(ERR-02, ERR-03), two are explanations that do not match correct
-output (ERR-01, ERR-04), one strengthens a caption that is now
-provable (ERR-06), and one is a dead local (ERR-07).
-
-## Two corrected listings
-
-Verifying the book turned up two real defects. The repository ships
-both the listing **as printed**, so `python run.py 35.1` and
-`python run.py 41.1` still reproduce the book, and a corrected
-version beside it:
-
-| | |
-|---|---|
-| `ch35/listing_35_1_corrected.py` | the calibration subset in Listing 35.1 selects one category only, which understates the judge's kappa by 0.07 |
-| `ch41/listing_41_1_corrected.py` | Listing 41.1 falls back silently to an HMAC key printed in the book, which makes every pseudonym reversible |
-
-Both are explained in `../ERRATA.md` with the suggested replacement
-text.
+Verifying the manuscript turned up seven defects (ERR-01 to ERR-07):
+two code defects in listings, two explanations that did not match the
+correct output, an image that could no longer be pulled, a caption that
+could be made stronger, and a dead local variable. All seven are fixed
+in the first edition of the book and in this repository. The code here
+is exactly what the book prints, and the test suite checks the outputs
+the chapters quote.
 
 ## Notes on the code
 
