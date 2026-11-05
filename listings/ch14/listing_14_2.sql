@@ -1,12 +1,16 @@
 -- Listing 14.2. pgvector schema and permission-filtered
 -- nearest-neighbor query.
 --
--- Chapter 14, Embeddings and Vector Search. Reviewed for correctness
--- against pgvector documentation (September 2026); requires a
--- PostgreSQL server with the vector extension to run.
+-- Chapter 14, Embeddings and Vector Stores. Verified by execution
+-- against PostgreSQL 16 with pgvector 0.8.7. The final query takes
+-- parameters ($1, $2), so run it through the harness, which applies
+-- the schema to a scratch database, loads two documents, and runs the
+-- query for two callers:
 --
--- Apply with:  psql "$DATABASE_URL" -f listings/ch14/listing_14_2.sql
--- The Compose file of Listing 44.1 starts a suitable database.
+--   python listings/ch14/verify_14_2.py postgresql://USER:PASS@HOST/DB
+--
+-- The database must be disposable: the harness creates and drops a
+-- database named listing_14_2 on that server.
 
 CREATE EXTENSION IF NOT EXISTS vector;
 

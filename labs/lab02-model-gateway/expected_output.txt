@@ -1,0 +1,23 @@
+== Step 1: a healthy call
+  provider=primary attempts=['primary/mock-large#1: ok'] cost=$0.000108
+
+== Step 2: transient error, retried with jittered backoff
+  attempts=['primary/mock-large#1: transient: 503 overloaded', 'primary/mock-large#2: ok']
+  backoff slept 0.034s (random in [0, 0.25])
+
+== Step 3: primary down: fall back
+  provider=fallback fallback_used=True
+  attempts=['primary/mock-large#1: transient: 503 overloaded', 'primary/mock-large#2: transient: 503 overloaded', 'fallback/mock-small#1: ok']
+
+== Step 4: the breaker opens and the primary is skipped without a call
+  breaker=open primary calls unchanged: True
+  attempts=['primary/mock-large: breaker open, skipped', 'fallback/mock-small#1: ok']
+  after cooldown: provider=primary breaker=closed
+
+== Step 5: restricted context never leaves the region
+  provider=in-region out-of-region calls=0
+  no eligible provider -> ['no eligible provider for this sensitivity']
+
+== Step 6: cost accounting and the daily cap
+  stopped after 10 calls, $0.001080 spent: daily cap $0.001 reached
+  attribution: {('alice', 'judge', 'mock-large'): 0.00108}

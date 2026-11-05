@@ -1,0 +1,6 @@
+# Optional: real model-provider adapters (atlas/gateway/anthropic.py,
+# atlas/gateway/openai.py). Installing these and setting the matching
+# API key environment variable enables a real provider. The test suite
+# never needs them and never calls a paid API.
+anthropic>=1.0
+openai>=1.40

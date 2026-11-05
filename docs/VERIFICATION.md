@@ -1,157 +1,133 @@
-# Verification record
+# Verification
 
-Every listing in *The Production AI Engineering Handbook*, executed
-on real infrastructure. This file is the evidence behind the
-"Verified by execution" label on 48 listing captions and behind the
-front matter's claim that every file was executed or reviewed exactly
-as its label states.
+This repository has **no continuous integration**: no GitHub Actions,
+no hosted runners, no paid testing service. That is a deliberate cost
+decision. Verification is a documented manual process that anyone can
+repeat on a laptop in a few minutes, and every claim of "verified" in
+the book and in this repository points to a run recorded here.
 
-## Result
+## The manual verification process
 
-| | |
+Run these from the repository root after `make venv`. Each step must
+finish without an error before a change is committed or released.
+
+| Step | Command | Needs | What it checks |
+|---|---|---|---|
+| 1 | `make verify` | Python only | flake8; the full test suite (unit, security, API; integration tests skip); every runnable book listing; labs 1–4, 6, 7; the MCP transcript check; that the Listing 44.1 copies match the root files |
+| 2 | `make verify-db` | a **disposable** PostgreSQL 16 + pgvector, in `ATLAS_TEST_DATABASE_URL` | the Postgres integration tests (they drop and recreate the schema) and Listing 14.2 |
+| 3 | `make verify-docker` | Docker with Compose | Lab 5: builds the image, starts the stack, checks the deployment contract, then removes it |
+| 4 | `python labs/lab07-production-readiness/lab.py` | Python only | the production readiness report, with the full test suite |
+
+A throwaway database for step 2:
+
+```bash
+docker run -d --name atlas-test-db -e POSTGRES_USER=atlas \
+  -e POSTGRES_PASSWORD=atlas-test-only -e POSTGRES_DB=atlas \
+  -p 55432:5432 pgvector/pgvector:pg16
+export ATLAS_TEST_DATABASE_URL=postgresql://atlas:atlas-test-only@localhost:55432/atlas
+make verify-db
+docker rm -f atlas-test-db
+```
+
+Nothing in this process calls a paid model API. The real provider
+adapters (`AnthropicProvider`, `OpenAIProvider`) are classified **EC**
+(executable, needs credentials) and are not exercised by any step.
+
+When you record a run, update the table below with the date, the
+environment, and the numbers the commands printed: never numbers you
+expect them to print.
+
+## Latest recorded run
+
+Date: 5 November 2026. Machine: macOS 26.4.1 on Apple silicon.
+
+| Component | Version |
 |---|---|
-| Runnable listings | **49 of 49 ran successfully** |
-| Test suite | **104 of 104 passed** |
-| Listing 21.1 structural check | **23 of 23 assertions passed** |
-| Listing 14.2 against pgvector | **applied and queried successfully** |
-| Listing 44.1 container | **built, started, serves `{"status":"ok"}`** |
-| `flake8` over the repository | **clean** |
-| Listing lines over 72 characters | **0** |
+| Python | 3.13.18 (CPython) |
+| NumPy / PyYAML | 2.5.4 / 6.0.3 |
+| FastAPI / Pydantic / psycopg | 0.162.0 / 2.14.2 / 3.3.8 |
+| PostgreSQL / pgvector | 16.15 / 0.8.7 (`pgvector/pgvector:pg16`) |
+| Docker | 29.5.2 (linux/arm64) via colima 0.10.3 |
 
-## Environment
-
-| | |
+| Check | Result |
 |---|---|
-| Python | 3.13.18 (CPython), macOS 15 arm64 |
-| NumPy | 2.5.4 |
-| PyYAML | 6.0.3 |
-| FastAPI | 0.162.0 |
-| PostgreSQL | 16 with pgvector **0.8.7** |
-| Container runtime | Docker 29.5.2, linux/aarch64 |
-| Date | 3 November 2026 |
+| `flake8` (atlas, tests, labs, listings, run.py) | **0 findings** |
+| Test suite, offline | **190 passed, 6 skipped** (the 6 are the Postgres integration tests) |
+| Test suite with `ATLAS_TEST_DATABASE_URL` set | **196 passed** |
+| Runnable book listings (`run.py --all`) | **52 of 52 ran successfully** |
+| Listing 14.2 on PostgreSQL 16 + pgvector 0.8.7 | **2 of 2 checks passed** |
+| Listing 21.1 structural check | **23 of 23 checks passed** |
+| Listing 44.1 (Lab 5) | **7 of 7 deployment checks passed** |
+| Lab 1 retrieval | fused + rerank recall@5 0.90, MRR 0.91 |
+| Lab 3 evaluation | baseline 17/18 (0.944, 95% CI 0.742–0.99); gate BLOCKs the regressed category only |
+| Lab 4 containment suite | **15 of 15 cases passed** (including the Docker sandbox) |
+| Lab 7 readiness | **20 of 20 executed checks passed**; 9 manual items open |
+| Listing code lines over 72 characters (printed code) | **0** |
 
-The book requires Python 3.12 or newer (Appendix K.1). Random seeds
-are fixed in every listing whose output depends on them, so these
-outputs reproduce exactly. Two values are environment-dependent and
-are noted where they appear: `latency_ms` in Listing 45.1 is
-wall-clock, and the `request_id` there is a fresh UUID each run.
+The expected output of each lab is committed next to it as
+`expected_output.txt`. Two kinds of value differ between runs by
+design: random identifiers (trace and request IDs) and wall-clock
+timings. Everything else is deterministic; random seeds are fixed.
 
-## The three listings `run.py` does not execute
+## Listings that `run.py` does not execute
 
-Their captions say *Reviewed for correctness*, not *Verified by
-execution*. All three have since been checked by other means.
+### Listing 14.2: pgvector schema and permission-filtered query
 
-### Listing 14.2 — pgvector schema and permission-filtered query
-
-Applied to PostgreSQL 16 with pgvector 0.8.7. The extension, both
-tables, the HNSW index and all three search-time settings are
-accepted; the query `PREPARE`s with its declared parameter types
-`(vector(1024), text[])`, which type-checks and plans it; and it
-returns the permission-filtered rows the text describes.
-
-```
- pgvector_version
-------------------
- 0.8.7
-
-CREATE EXTENSION
-CREATE TABLE
-CREATE TABLE
-CREATE INDEX
-SET            -- hnsw.ef_search = 100
-SET            -- hnsw.iterative_scan = relaxed_order
-SET            -- hnsw.max_scan_tuples = 20000
-PREPARE
-
-=== all-staff user sees only the leave policy:
- id | document_id  | heading_path |       content        | similarity
-----+--------------+--------------+----------------------+------------
-  1 | policy-leave | Leave > 4.2  | five days carry over |          1
-(1 row)
-
-=== hr user sees both:
- id | document_id  | heading_path |       content        | similarity
-----+--------------+--------------+----------------------+------------
-  1 | policy-leave | Leave > 4.2  | five days carry over |          1
-  2 | policy-pay   | Pay > 3.1    | salary bands         |          1
-(2 rows)
-```
-
-The caption can now be strengthened to "Verified by execution" — see
-`../ERRATA.md`, ERR-06. The CI workflow re-runs this against a
-pgvector service on every push, so the claim stays true.
-
-### Listing 21.1 — MCP JSON-RPC messages
-
-A message transcript, not a program, so `python
-listings/ch21/validate_21_1.py` makes the review mechanical: it
-strips the comments and HTTP request lines, parses every JSON object,
-and asserts the properties the surrounding text claims.
+The query takes parameters, so `psql -f` cannot run it as printed.
+`listings/ch14/verify_14_2.py` applies the schema and search settings
+exactly as printed to a scratch database, `PREPARE`s the query with its
+declared types `(vector(1024), text[])`, loads two documents with
+different ACLs, and runs it for two callers:
 
 ```
-23/23 checks passed
+pgvector 0.8.7; schema, index and settings applied
+query prepared with types (vector(1024), text[])
+all-staff caller sees ['policy-leave']  ok
+hr        caller sees ['policy-leave', 'policy-pay']  ok
+2/2 checks passed
 ```
 
-The assertions cover JSON-RPC 2.0 shape, the presence of
-`MCP-Protocol-Version` and `Mcp-Method` headers, agreement between
-each header and the matching `params._meta` protocol version,
-`resultType: "complete"` on both results, the tool's input schema,
-the cacheability fields (`ttlMs`, `cacheScope`), and request/result
-id pairing. It is not a conformance test against a live MCP server.
+### Listing 21.1: MCP JSON-RPC messages
 
-### Listing 44.1 — container build and Compose definition
+A message transcript, not a program. `listings/ch21/validate_21_1.py`
+strips comments and HTTP request lines, parses every JSON object, and
+asserts the properties the chapter claims (JSON-RPC 2.0 shape,
+protocol-version headers agreeing with `params._meta`, result types,
+the tool's input schema, cacheability fields, id pairing): **23/23
+checks passed**. It is not a conformance test against a live MCP
+server.
 
-The manuscript's original Compose file used `minio/minio`, which is
-no longer pullable from any public registry; because Compose resolves
-every image before starting anything, no service started. This was
-ERR-05. The first edition prints the corrected file (an S3-compatible
-SeaweedFS store on the same port), and that file is the one here.
+### Listing 44.1: container build and Compose definition
 
-Verified end to end:
+Verified by Lab 5 (`make verify-docker`): configuration valid; image
+builds; the database becomes healthy; the one-shot migration applies
+`001_init.sql`; the app starts after it, seeds seven documents and
+quarantines the poisoned one; the process runs as the unprivileged
+`atlas` user; an authenticated question is answered with a citation;
+and a restart applies nothing twice. Full output:
+`labs/lab05-deployment/expected_output.txt`.
 
-```
-$ docker compose build app
-Successfully built ec9f4e36f890
-Successfully tagged atlas_companion_code-app:latest
+## Defects found by verification
 
-$ docker compose up -d
- Container atlas_companion_code-objects-1  Started
- Container atlas_companion_code-db-1       Started
- Container atlas_companion_code-cache-1    Started
- Container atlas_companion_code-app-1      Started
+Earlier verification of the manuscript found seven defects (ERR-01 to
+ERR-07): two code defects in listings, two explanations that did not
+match the code's output, a container image that could no longer be
+pulled, a caption that could be strengthened, and a dead local
+variable. All are fixed in the book and here. Building the labs found
+and fixed more, each now covered by a test or a lab check:
 
-$ curl localhost:8000/health
-{"status":"ok"}
-
-$ curl -X POST localhost:8000/validate -H 'content-type: application/json' \
-    -d '{"answer":{"answer":"Five days.","citations":["policy/leave-v6"],
-         "supported":true,"confidence":"high","escalate":false},
-         "valid_sources":["policy/leave-v7"]}'
-{"valid":false,"errors":["unknown citation: policy/leave-v6"]}
-
-$ docker compose exec app id
-uid=1000(atlas) gid=1000(atlas) groups=1000(atlas)
-```
-
-The health endpoint returns exactly what Appendix K.6 says it will,
-the service runs as the unprivileged user the Dockerfile creates, and
-the `/validate` route exercises Chapter 12's validator through
-`atlas/validation.py` — the same module Listing 33.1 imports.
-
-## Defects found while verifying
-
-Seven were recorded in `../ERRATA.md` and all seven are fixed in the
-first edition and in this repository: the Compose image (ERR-05), an
-insecure HMAC default in the privacy chapter (ERR-03, the listing now
-refuses to run without a key), a calibration subset that understated
-the judge's kappa (ERR-02, now stratified; kappa 0.71), two
-explanations corrected to match the code's output (ERR-01, ERR-04), a
-strengthened caption (ERR-06), and a dead local (ERR-07).
-
-Every other listing reproduces the output its chapter describes,
-exactly.
-
----
+- citation verification accepted an unsupported sentence appended to a
+  supported one (now checked per sentence);
+- heading paths containing `>` broke context tags (attributes are now
+  escaped);
+- draft tools required approval even without untrusted content (policy
+  corrected);
+- the vLLM image in the Compose file was unpinned (`:latest`); Lab 7
+  caught it and it is now pinned;
+- production accepted placeholder secrets such as `CHANGE_ME` (now
+  refused; at least 32 characters required);
+- Listing 14.2's run instructions (`psql -f`) could not execute the
+  parameterized query (replaced by `verify_14_2.py`).
 
 ## Full output of `python run.py --all`
 
@@ -169,6 +145,17 @@ access <- Locked out after MFA reset
 general <- help
 hardware <- New docking station
 {'rule': 3, 'model': 1}
+
+--- Listing 7.1  (listings/ch07/listing_7_1.py) ---
+8B-class: KV cache 128 KiB/token (fp16); weights fp16 16 GB, int8 8 GB, int4 4 GB
+70B-class: KV cache 320 KiB/token (fp16); weights fp16 140 GB, int8 70 GB, int4 35 GB
+
+8B-class fp16 on 1 x 24 GB GPU: 5 x 8k sequences fit; batch 5 <= 80 tok/s; ~$5.54/M output tokens at 50% use
+8B-class int4 on 1 x 24 GB GPU: 16 x 8k sequences fit; batch 16 <= 381 tok/s; ~$1.17/M output tokens at 50% use
+8B-class fp16 on 1 x 80 GB GPU: 52 x 8k sequences fit; batch 32 <= 2,893 tok/s; ~$0.67/M output tokens at 50% use
+70B-class fp16 on 1 x 80 GB GPU: does not fit with an 8k context
+70B-class fp16 on 2 x 80 GB GPU: 1 x 8k sequences fit; batch 1 <= 42 tok/s; ~$91.61/M output tokens at 50% use
+70B-class int4 on 1 x 80 GB GPU: 13 x 8k sequences fit; batch 13 <= 744 tok/s; ~$2.61/M output tokens at 50% use
 
 --- Listing 8.1  (listings/ch08/listing_8_1.py) ---
 large: $0.0516  mid (8% retries): $0.0149  large w/ cached prefix: $0.0462
@@ -233,6 +220,12 @@ bad:  ['citation not in context: policy-leave/4.3@2026-06-01', "sentence not sup
 2 'Leave Policy > 4 Carry-over > 4.3 Exclusions: Contractors may not carr' a68bb923091e5c5f
 replaced | unchanged
 replaced | writes: 2
+
+--- Listing 18.2  (listings/ch18/listing_18_2.py) ---
+clean scan: route=accept invoice=INV-2291 lines=2 total=121.00
+poor scan: route=review invoice=INV-2291 lines=2 total=12B.00
+   - total: low OCR confidence 0.61
+   - total: not a number '12B.00'
 
 --- Listing 19.1  (listings/ch19/listing_19_1.py) ---
 alice -> Result: <UNTRUSTED origin=tool:lookup_ticket>{"status": "open", "summary": "VPN drops"}</U
@@ -392,12 +385,22 @@ ALLOW ok                                                   https://api.ticketing
 ALLOW query stripped (model-controlled parameters removed) https://docs.vendor.example.com/g
 BLOCK blocked address range                                https://169.254.169.254/latest/meta-data/
 BLOCK host not allowlisted                                 https://evil.example/?e=data
-issuance log: [{'tool': 'lookup_ticket', 'user': 'alice', 'scope': 'lookup_ticket:read', 'id': '0b6510f935'}, {'tool': 'draft_ticket', 'user': 'alice', 'denied': 'approval'}]
+issuance log: [{'tool': 'lookup_ticket', 'user': 'alice', 'scope': 'lookup_ticket:read', 'id': 'a645fbe9f5'}, {'tool': 'draft_ticket', 'user': 'alice', 'denied': 'approval'}]
+
+--- Listing 43.2  (listings/ch43/listing_43_2.py) ---
+4 components, 14 component-category pairs, 12 threats
+gaps:
+  - ingestion: no threat recorded for tampering
+  - ingestion/elevation: no control
+residual risks to accept:
+  - retrieval/poisoning residual medium -> security owner
+  - retrieval/injection residual medium -> security owner
+OWASP mapping for poisoning: LLM05
 
 --- Listing 45.1  (listings/ch45/listing_45_1.py) ---
 schema problems: none
 {
- "request_id": "b566bb34",
+ "request_id": "57375f5c",
  "tenant": "acme",
  "code": "2026.09.3",
  "instructions_hash": "a91f",
@@ -474,6 +477,6 @@ v0.4 decision: NO-GO | blocking: ['evaluation: gate_all_artifacts', 'security: c
 {'phase': 'hardening', 'level': 'L2', 'remaining': ['containment_100 (Ch. 39)', 'rollback_4 (Ch. 48)', 'slos (Ch. 37)']}
 {'phase': 'continuous', 'level': 'L5', 'remaining': []}
 
-49 listings in 1.1s
+52 listings in 1.1s
 RESULT: all listings ran successfully
 ```

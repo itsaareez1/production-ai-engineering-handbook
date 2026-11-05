@@ -1,158 +1,229 @@
-# Companion code — The Production AI Engineering Handbook
+# The Production AI Engineering Handbook: companion code
 
-Every listing in the book, one file per listing, runnable with
-`python3` wherever its caption says *Verified by execution*.
+**Atlas**, a complete, tested reference implementation of a production
+AI application: a permission-aware knowledge assistant with a model
+gateway, a bounded ticket agent, an evaluation harness, security
+controls, observability, and a Docker deployment. It also contains
+every code listing from the book and seven hands-on labs.
 
-by Arslan ud Din Shafiq
+Everything runs offline on a deterministic mock model. **No API key,
+no paid service, no cloud account.**
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python run.py 3.1
+git clone https://github.com/itsaareez1/production-ai-engineering-handbook.git
+cd production-ai-engineering-handbook
+make venv && make verify       # about a minute
 ```
 
-```
---- Listing 3.1  (listings/ch03/listing_3_1.py) ---
-validated 120.0 1
-```
+---
 
-Appendix K of the book walks through the same steps for readers new
-to Python tooling.
+## Relationship with the book
 
-## Commands
+*The Production AI Engineering Handbook: Build, Deploy, Secure,
+Evaluate, and Scale Reliable AI Applications* by Arslan ud Din Shafiq
+follows one system, Atlas, from demo to production across 54 chapters.
+This repository is that system.
 
-| | |
+- `listings/` holds every code listing exactly as printed, one file per
+  listing, runnable by number: `python run.py 15.2`.
+- `atlas/` is the full implementation the listings are extracted from
+  and simplified for print.
+- [`docs/CHAPTER_CODE_MAPPING.md`](docs/CHAPTER_CODE_MAPPING.md) maps
+  every chapter to its listings, modules, tests, and labs.
+
+The book's text and figures are not in this repository and are not
+covered by its license.
+
+## What you will build
+
+An internal assistant that answers employees' questions from company
+documents, cites its sources, never shows a document to someone who
+may not read it, refuses when it cannot support an answer, and opens
+support tickets through an agent that asks a person before doing
+anything risky. Then you deploy it, observe it, evaluate it, attack it,
+and review it for production.
+
+## Key features
+
+| Area | What is implemented |
 |---|---|
-| `python run.py 3.1` | run one listing by number |
-| `python run.py --list` | list all 49 runnable listings |
-| `python run.py --all` | run every listing (about a second) |
-| `python -m pytest tests/ -q` | the test suite (106 tests) |
-| `docker compose build && docker compose up` | the Atlas service of Listing 44.1 |
+| Retrieval | Structure-aware chunking; vector and keyword search; reciprocal rank fusion; reranking; ACL and status filters inside the query; context budget; citation verification by label and by sentence |
+| Model gateway | Provider adapters; routing by task; timeouts; retries with jittered backoff for transient errors only; fallback; circuit breakers; in-region routing for restricted context; cost ledger with a daily cap |
+| Agent | Tool registry with risk levels; authorization with the caller's identity; step budget; no-progress guard; approvals bound to the exact proposal, with expiry and no self-approval; idempotent writes; hash-chained audit log |
+| Security | Injection scanning and quarantine at ingestion; untrusted-content tags; keyed redaction; egress allowlist with resolved-IP checks; signed tokens; role checks; no stack traces to clients |
+| Evaluation | Versioned golden set; deterministic graders; Wilson intervals; judge calibration with Cohen's kappa; paired per-category regression gate |
+| Operations | Validated configuration; JSON logs; traces with required attributes; Prometheus metrics; SQL migrations; Docker image running unprivileged; Compose stack |
+| Tests | 196 tests: unit, security, API, listings, and PostgreSQL integration |
 
-`run.py` finds listings by number, so you never need to know the
-folder layout. Python 3.12 or newer is required.
+## Architecture overview
 
-## Layout
-
+```text
+client ─► FastAPI ─► Atlas.ask
+                       ├─ retrieval (vector + keyword, ACL/status inside) ─► RRF ─► rerank
+                       ├─ context assembly (budget, SOURCE/UNTRUSTED tags, sensitivity)
+                       ├─ model gateway (route, retry, fallback, breaker, region rule, cost cap)
+                       ├─ validation (schema, citations, per-sentence support) ─► one repair
+                       └─ answered | escalated | degraded  ─► trace + metrics
+ingestion ─► injection scan ─► quarantine | chunk + embed ─► PostgreSQL/pgvector or memory
+agent ─► plan ─► authorize ─► allow | approval | refuse ─► tool ─► audit (hash chain)
 ```
+
+Details: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Design
+choices: [`docs/DECISIONS.md`](docs/DECISIONS.md).
+
+## Repository structure
+
+```text
+atlas/                     the reference implementation
+  api/  agents/  core/  db/  evaluation/  gateway/  retrieval/  security/
+  service.py  cli.py  validation.py  prompts/
+listings/chNN/             every book listing, as printed
+labs/lab01..lab07/         seven hands-on labs, each with a README
+examples/corpus/           eight sample company documents (one poisoned)
+examples/evaluation/       golden set and retrieval set
+tests/                     unit/, security/, integration/, API and listing tests
+docs/                      architecture, setup, verification, mapping, decisions, templates
 run.py                     run any listing by number
-listings/chNN/             the listings, as printed, one file each
-atlas/validation.py        Listing 12.1 as a module (Listing 33.1 imports it)
-atlas/api.py               the service the Dockerfile of Listing 44.1 starts
-tests/test_listings.py     executes every runnable listing
-tests/test_api.py          tests the service
-Dockerfile                 Listing 44.1, part 1
-docker-compose.yml         Listing 44.1, part 2
-VERIFICATION.md            the output of every listing on a real machine
-requirements.txt           NumPy and PyYAML for the listings; FastAPI and
-                           Uvicorn for the service
+Dockerfile, docker-compose.yml   Listing 44.1
+Makefile                   venv, test, lint, labs, verify targets
+.env.example               configuration template (placeholders only)
 ```
 
-## Listings by chapter
+## Prerequisites
 
-| Listing | Chapter | What it shows | File |
-|---|---|---|---|
-| 3.1 | 3 Reference Architecture | application skeleton with a stubbed model | `ch03/listing_3_1.py` |
-| 5.1 | 5 Requirements | machine-readable requirements with a validator | `ch05/listing_5_1.py` |
-| 6.1 | 6 When Not to Use AI | rules-first routing, model fallback | `ch06/listing_6_1.py` |
-| 8.1 | 8 Model Selection | cost per request, caching and retries | `ch08/listing_8_1.py` |
-| 9.1 | 9 Gateways | routing, fallback, circuit breaking | `ch09/listing_9_1.py` |
-| 10.1 | 10 Context Budgets | per-source caps and a drop log | `ch10/listing_10_1.py` |
-| 11.1 | 11 Instructions | versioned instructions, regression check | `ch11/listing_11_1.py` |
-| 12.1 | 12 Structured Output | answer schema, validator, repair loop | `ch12/listing_12_1.py` |
-| 13.1 | 13 RAG | recall@k and MRR over a labeled set | `ch13/listing_13_1.py` |
-| 14.1 | 14 Vector Search | cosine similarity, exact nearest neighbour | `ch14/listing_14_1.py` |
-| 14.2 | 14 Vector Search | pgvector schema, permission-filtered query | `ch14/listing_14_2.sql` |
-| 15.1 | 15 Hybrid Retrieval | BM25 keyword scoring | `ch15/listing_15_1.py` |
-| 15.2 | 15 Hybrid Retrieval | reciprocal rank fusion | `ch15/listing_15_2.py` |
-| 15.3 | 15 Hybrid Retrieval | FTS5 search with a permission filter | `ch15/listing_15_3.py` |
-| 16.1 | 16 Reranking | reranking a fused list, and measuring it | `ch16/listing_16_1.py` |
-| 17.1 | 17 Citation | label resolution and span support | `ch17/listing_17_1.py` |
-| 18.1 | 18 Ingestion | structure-aware chunking, idempotent indexing | `ch18/listing_18_1.py` |
-| 19.1 | 19 Tool Use | bounded loop with validation and authorization | `ch19/listing_19_1.py` |
-| 20.1 | 20 Integrations | URL validation against SSRF | `ch20/listing_20_1.py` |
-| 21.1 | 21 MCP | JSON-RPC messages for discovery and invocation | `ch21/listing_21_1.jsonc` |
-| 22.1 | 22 Orchestration | checkpointed step graph with resumption | `ch22/listing_22_1.py` |
-| 23.1 | 23 Deterministic Shell | state machine, one validated model decision | `ch23/listing_23_1.py` |
-| 24.1 | 24 Reliability | idempotent write, bounded jittered retries | `ch24/listing_24_1.py` |
-| 26.1 | 26 Agent Architecture | planner, executor, verifier, state, budget | `ch26/listing_26_1.py` |
-| 27.1 | 27 Agent Memory | memory tiers with event-gated writes | `ch27/listing_27_1.py` |
-| 28.1 | 28 Permission Model | tool registry and a policy layer | `ch28/listing_28_1.py` |
-| 29.1 | 29 Human Oversight | proposal-bound, expiring approvals | `ch29/listing_29_1.py` |
-| 30.1 | 30 Multi-Agent | orchestrator-worker with result contracts | `ch30/listing_30_1.py` |
-| 31.1 | 31 Agents vs Workflows | cost and latency distributions | `ch31/listing_31_1.py` |
-| 32.1 | 32 Failure Taxonomy | first-pass failure classifier | `ch32/listing_32_1.py` |
-| 33.1 | 33 Testing Pyramid | unit, contract and statistical tests | `ch33/listing_33_1.py` |
-| 34.1 | 34 Golden Set | stratified sampling, split, leakage check | `ch34/listing_34_1.py` |
-| 35.1 | 35 Evaluation | grading, a judge, and judge calibration | `ch35/listing_35_1.py` |
-| 36.1 | 36 Groundedness | claim-level grounding, confidence calibration | `ch36/listing_36_1.py` |
-| 37.1 | 37 Reliability Engineering | error budgets by incident and release | `ch37/listing_37_1.py` |
-| 38.1 | 38 Regression Gate | paired bootstrap per category | `ch38/listing_38_1.py` |
-| 39.1 | 39 Prompt Injection | regression suite checked against effects | `ch39/listing_39_1.py` |
-| 40.1 | 40 Trust Boundaries | trust tiers, marker scan, tier-aware wrapping | `ch40/listing_40_1.py` |
-| 41.1 | 41 Data Protection | redaction with stable pseudonyms, retention | `ch41/listing_41_1.py` |
-| 42.1 | 42 Identity | identity from session; confused deputy refused | `ch42/listing_42_1.py` |
-| 43.1 | 43 Agent Security | credential broker and egress policy | `ch43/listing_43_1.py` |
-| 44.1 | 44 Environments | container build and Compose definition | `ch44/Dockerfile` |
-| 45.1 | 45 Observability | trace and span schema, metrics record | `ch45/listing_45_1.py` |
-| 46.1 | 46 Cost Engineering | total cost with attribution by component | `ch46/listing_46_1.py` |
-| 47.1 | 47 Scaling | retry storm versus bounded-wait admission | `ch47/listing_47_1.py` |
-| 48.1 | 48 Release | manifest, canary decision, rollback | `ch48/listing_48_1.py` |
-| 49.1 | 49 Build/Buy | three-year cost including expected exit | `ch49/listing_49_1.py` |
-| 50.1 | 50 Maintainability | architecture fitness function | `ch50/listing_50_1.py` |
-| 51.1 | 51 Governance | ownership and change-control matrix | `ch51/listing_51_1.py` |
-| 52.1 | 52 Atlas End to End | prototype path beside production path | `ch52/listing_52_1.py` |
-| 53.1 | 53 Readiness Review | the go/no-go gate, applied to Atlas | `ch53/listing_53_1.py` |
-| 54.1 | 54 Roadmap | plan file with ladder-mapped exit criteria | `ch54/listing_54_1.py` |
+- Python 3.12 or later
+- Git
+- Optional: Docker with Compose for the database, the sandbox step of
+  Lab 4, and Lab 5
 
-Chapters 1, 2, 4, 7, 25 and the appendices carry no listing.
+## Installation
 
-## The three listings `run.py` does not run
+```bash
+make venv
+source .venv/bin/activate        # Windows: .venv\Scripts\Activate.ps1
+```
 
-Their captions say *Reviewed for correctness*, not *Verified by
-execution*, and `run.py` tells you what each one needs:
+Without `make`: `python -m venv .venv` then
+`.venv/bin/python -m pip install -r requirements-dev.txt`. Full
+instructions, including Windows: [`docs/SETUP.md`](docs/SETUP.md).
 
-- **14.2** needs PostgreSQL with pgvector.
-  `psql "$DATABASE_URL" -f listings/ch14/listing_14_2.sql`
-- **21.1** is a transcript of MCP messages, not a program.
-  `python listings/ch21/validate_21_1.py` checks it structurally —
-  23 assertions on JSON-RPC shape, header/`_meta` agreement, result
-  types and id pairing.
-- **44.1** needs Docker. `docker compose build && docker compose up`,
-  then `curl localhost:8000/health` returns `{"status":"ok"}`.
-  The stack runs PostgreSQL with pgvector, Redis, an S3-compatible
-  object store (SeaweedFS), and the API.
+## Environment configuration
 
-All three have been checked despite not being run by `run.py` —
-14.2 applied to PostgreSQL 16 with pgvector 0.8.7, 21.1 against its
-structural checker, 44.1 built and served. `VERIFICATION.md` has the
-transcripts.
+All settings are `ATLAS_*` environment variables, validated at
+start-up. None is needed for development. To customize, copy the
+template:
 
-## Errata
+```bash
+cp .env.example .env
+```
 
-Verifying the manuscript turned up seven defects (ERR-01 to ERR-07):
-two code defects in listings, two explanations that did not match the
-correct output, an image that could no longer be pulled, a caption that
-could be made stronger, and a dead local variable. All seven are fixed
-in the first edition of the book and in this repository. The code here
-is exactly what the book prints, and the test suite checks the outputs
-the chapters quote.
+In production (`ATLAS_ENV=prod`) the token secret and redaction key
+are required, must be at least 32 random characters, and cannot be
+placeholders; the service refuses to start otherwise.
 
-## Notes on the code
+## Database setup
 
-The listings are deliberately plain. They use the standard library,
-NumPy and PyYAML, and no framework, because the book's argument is
-that the controls belong in code the team owns. Models are stubbed
-throughout: the stubs are chosen to exercise the failure the chapter
-is about, which is why several of them misbehave on purpose.
+Without `ATLAS_DATABASE_URL`, Atlas uses an in-memory store and needs
+no database. For PostgreSQL with pgvector:
 
-Lines are kept to 72 characters so the code fits a printed page
-without wrapping.
+```bash
+docker compose up -d db
+docker compose run --rm migrate
+```
 
-Listing 11.1 writes to an `instructions/` directory in the working
-directory; it is created on first run and is ignored by git.
+Migrations live in `atlas/db/migrations/` and are tracked by checksum,
+so re-running them applies nothing.
+
+## Starting the application
+
+```bash
+python -m atlas.cli ask --user alice "How many days of unused leave can I carry over?"
+uvicorn atlas.api:app --port 8000          # HTTP service, in-memory store
+docker compose up --build                  # full stack: db, migrate, app, cache, objects
+```
+
+```text
+{
+  "outcome": "answered",
+  "answer": "Up to five days of unused annual leave may be carried over to the next year with manager approval.",
+  "citations": ["policy-leave#1@2026-06-01"], ...
+}
+```
+
+## Running tests
+
+```bash
+make test                      # 190 passed, 6 skipped (integration tests need a database)
+make verify                    # lint + tests + all listings + offline labs
+make verify-db                 # with ATLAS_TEST_DATABASE_URL set: integration tests, Listing 14.2
+make verify-docker             # Lab 5: build and verify the Compose stack
+```
+
+There is no CI in this repository, by design. Verification is the
+documented manual process in [`docs/VERIFICATION.md`](docs/VERIFICATION.md),
+which also records the latest run.
+
+## Running individual labs
+
+| Lab | Command |
+|---|---|
+| 1. Production RAG | `python labs/lab01-rag/lab.py` |
+| 2. Model gateway | `python labs/lab02-model-gateway/lab.py` |
+| 3. Evaluation pipeline | `python labs/lab03-evaluation/lab.py` |
+| 4. Agent security | `python labs/lab04-agent-security/lab.py` |
+| 5. Deployment | `python labs/lab05-deployment/lab.py` (Docker) |
+| 6. Observability | `python labs/lab06-observability/lab.py` |
+| 7. Production readiness | `python labs/lab07-production-readiness/lab.py` |
+
+Each lab's README has objectives, steps, expected output, and
+challenges. Overview: [`labs/README.md`](labs/README.md).
+
+Book listings: `python run.py --list`, `python run.py 14.1`,
+`python run.py --all`.
+
+## Troubleshooting
+
+The common problems and their fixes are in
+[`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md). The three most
+frequent: run from the repository root with the virtual environment
+active; six skipped tests are expected without a database; and IDs and
+timings in lab output differ between runs by design.
+
+## Security guidance
+
+- Never commit secrets. `.env` is ignored by git; `.env.example`
+  contains placeholders only.
+- Development tokens are disabled in production, and production
+  refuses to start without real secrets.
+- The development users and the poisoned sample document are fixtures
+  for testing controls; replace identity with your own provider.
+- This is teaching code with tests, not audited software. Review it
+  before using it with real data.
+- Report vulnerabilities privately: see [`SECURITY.md`](SECURITY.md).
+
+## Contributing
+
+Bug reports, especially errors in the book's code, are welcome. Read
+[`CONTRIBUTING.md`](CONTRIBUTING.md) first: listings must match the
+printed book, tests and labs must stay offline and free, and the
+repository takes no CI configuration. Participation follows the
+[`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
 
 ## License
 
-MIT. See `LICENSE`.
+The code in this repository is released under the MIT License; see
+[`LICENSE`](LICENSE). The book's text, figures, and manuscript are
+copyright of the author, are not included here, and are not covered by
+this license.
+
+## Book and author
+
+**The Production AI Engineering Handbook**
+*Build, Deploy, Secure, Evaluate, and Scale Reliable AI Applications*
+Arslan ud Din Shafiq, 2026.
+
+Arslan ud Din Shafiq is a software architect and founder-engineer with
+more than ten years of building and operating commercial software,
+Founder and Director of Stacklab X Ltd, and a 9× Alibaba Cloud MVP. He
+is also the author of *The AI-Powered Small Business*. He writes at
+[imarslan.net](https://imarslan.net).

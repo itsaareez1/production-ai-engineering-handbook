@@ -1,9 +1,7 @@
 # Listing 44.1 (part 1 of 2). Local environment for Atlas:
-# container build. Chapter 44, Environments and Deployment.
+# container build. Chapter 44, Deploying AI Applications.
 #
-# Reviewed for correctness (build order, user, health check) and
-# validated for structure; build it with:
-#   docker compose build && docker compose up
+# Build and start the whole stack with: docker compose up --build
 # This file is an exact copy of ./Dockerfile at the repository root,
 # which is the one Compose builds.
 
@@ -14,9 +12,10 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 # Copy the source, then install the local package (source must exist
-# first).
+# first). The example corpus seeds a development database.
 COPY pyproject.toml ./
 COPY atlas ./atlas
+COPY examples ./examples
 RUN pip install --no-cache-dir --no-deps .
 # Run as an unprivileged user; the image contains no secrets.
 RUN useradd --uid 1000 --no-create-home atlas

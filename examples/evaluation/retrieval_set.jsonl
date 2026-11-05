@@ -1,0 +1,10 @@
+{"q":"How many days of unused leave can I carry over?","user":"alice","relevant":["policy-leave"]}
+{"q":"Which form do I use to request a new laptop?","user":"alice","relevant":["it-faq"]}
+{"q":"form HR-27","user":"bob","relevant":["it-faq"]}
+{"q":"What is the daily meal allowance during business travel?","user":"alice","relevant":["policy-expenses"]}
+{"q":"EX-12","user":"bob","relevant":["policy-expenses"]}
+{"q":"hotel limit per night","user":"alice","relevant":["policy-expenses"]}
+{"q":"When do I have to use carried-over days?","user":"bob","relevant":["policy-leave"]}
+{"q":"password reset link expiry","user":"alice","relevant":["it-faq"]}
+{"q":"salary band senior engineer","user":"sam","relevant":["hr-salary-bands"]}
+{"q":"time off left at the end of the year","user":"alice","relevant":["policy-leave"]}

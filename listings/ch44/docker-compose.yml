@@ -1,48 +1,60 @@
 # Listing 44.1 (part 2 of 2). Local environment for Atlas: Compose
-# definition. Chapter 44, Environments and Deployment.
+# definition. Chapter 44, Deploying AI Applications.
 #
 # This file is an exact copy of ./docker-compose.yml at the
 # repository root, which is the one Compose reads. Start it with:
-#   docker compose build && docker compose up
+#   docker compose up --build
 services:
   app:
     build: .
     ports: ["8000:8000"]
-    # never committed; contains dev secrets only
+    # optional; copy .env.example to .env (never committed)
     env_file:
-      - path: .env.local
+      - path: .env
         required: false
     environment:
-      ATLAS_ENV: local
-      # 'replay' = recorded responses; 'live' = model
-      GATEWAY_MODE: replay
-      MODEL_ENDPOINT: http://inference:8080/v1
-      DATABASE_URL: postgresql://atlas:atlas@db:5432/atlas
-      REDIS_URL: redis://cache:6379/0
-      OBJECT_STORE_URL: http://objects:9000
-    depends_on: [db, cache, objects]
+      ATLAS_ENV: dev
+      ATLAS_DATABASE_URL: postgresql://atlas:atlas@db:5432/atlas
+      ATLAS_MODEL_PROVIDER: mock
+      ATLAS_SEED_CORPUS: /app/examples/corpus
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  migrate:
+    # one-shot: applies atlas/db/migrations, then exits
+    build: .
+    command: ["python", "-m", "atlas.db.migrate"]
+    environment:
+      ATLAS_DATABASE_URL: postgresql://atlas:atlas@db:5432/atlas
+    depends_on:
+      db:
+        condition: service_healthy
   db:
     image: pgvector/pgvector:pg16
     environment:
       POSTGRES_USER: atlas
       POSTGRES_PASSWORD: atlas
       POSTGRES_DB: atlas
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atlas -d atlas"]
+      interval: 2s
+      retries: 30
     volumes: ["dbdata:/var/lib/postgresql/data"]
   cache:
     image: redis:7-alpine
   objects:
-    # The book prints `minio/minio`, which is no longer pullable from
-    # any public registry (ERRATA.md, ERR-05). SeaweedFS serves the
-    # same S3 API on the same port, so nothing above it changes.
+    # S3-compatible object store on port 9000 (SeaweedFS; pinned).
     image: chrislusf/seaweedfs:3.80
     command: server -dir=/data -s3 -s3.port=9000
     volumes: ["objectdata:/data"]
   inference:
-    # placeholder
-    image: ghcr.io/example/openai-compatible-server:latest
-    # start with: docker compose --profile live up
+    # Optional self-hosted model; replace the image with your
+    # serving engine (Appendix L), pinned to a tested tag. Needs a
+    # GPU. Not started unless:
+    #   docker compose --profile live up
+    image: vllm/vllm-openai:v0.32.0
     profiles: ["live"]
-    ports: ["8080:8080"]
+    ports: ["8080:8000"]
 volumes:
   dbdata: {}
   objectdata: {}

@@ -1,7 +1,9 @@
-# The listings themselves need only the standard library, NumPy and
-# PyYAML. FastAPI and Uvicorn are for atlas/api.py, the minimal service
-# entry point that the Dockerfile in Listing 44.1 starts.
+# Runtime dependencies for the listings and the Atlas reference
+# implementation. Real model-provider SDKs are optional and live in
+# requirements-providers.txt; nothing here needs a paid account.
 numpy>=2.1,<3
 PyYAML>=6.0,<7
 fastapi>=0.115,<1
 uvicorn[standard]>=0.32,<1
+pydantic>=2.8,<3
+psycopg[binary]>=3.2,<4

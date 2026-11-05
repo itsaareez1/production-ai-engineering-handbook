@@ -1,0 +1,35 @@
+== Step 1: golden set 485d5b93d321: 18 items, categories ['adversarial', 'expenses', 'it', 'leave', 'out-of-scope', 'restricted']
+
+== Step 2: baseline, graded per category
+  adversarial   n=2  pass=1.00  95% CI (0.342, 1.0)
+  expenses      n=5  pass=0.80  95% CI (0.376, 0.964)
+  it            n=2  pass=1.00  95% CI (0.342, 1.0)
+  leave         n=5  pass=1.00  95% CI (0.566, 1.0)
+  out-of-scope  n=1  pass=1.00  95% CI (0.207, 1.0)
+  restricted    n=3  pass=1.00  95% CI (0.439, 1.0)
+  overall       {'n': 18, 'pass_rate': 0.944, 'wilson_95': (0.742, 0.99)}
+  failed items: ['gs-018'] -> {'escalation': False, 'facts': False, 'forbidden': True, 'citations': False, 'pass': False}
+
+== Step 3: judge calibration against human labels
+  {'n': 18, 'agreement': 1.0, 'kappa': 1.0}
+  (the mock judge grades with the same reference facts, so perfect agreement here
+   shows the machinery works; a real model judge must earn its kappa, Ch. 35)
+
+== Step 4: candidate with a regression confined to one category
+  adversarial   n=2  pass=1.00
+  expenses      n=5  pass=0.80
+  it            n=2  pass=1.00
+  leave         n=5  pass=0.00
+  out-of-scope  n=1  pass=1.00
+  restricted    n=3  pass=1.00
+
+== Step 5: the regression gate
+  adversarial   delta=+0.00  CI=(0.0, 0.0)  pass
+  expenses      delta=+0.00  CI=(0.0, 0.0)  pass
+  it            delta=+0.00  CI=(0.0, 0.0)  pass
+  leave         delta=-1.00  CI=(-1.0, -1.0)  BLOCK
+  out-of-scope  delta=+0.00  CI=(0.0, 0.0)  pass
+  restricted    delta=+0.00  CI=(0.0, 0.0)  pass
+  DECISION: BLOCKED (blocked: ['leave'])
+
+  report written: eval_report.md

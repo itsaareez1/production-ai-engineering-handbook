@@ -1,0 +1,18 @@
+== Step 1: configuration is valid
+  docker compose config: OK
+
+== Step 2: build and start
+  healthy after 1.0s
+
+== Step 3: verify the deployment contract
+  [PASS] migration applied
+  [PASS] corpus seeded
+  [PASS] poisoned page quarantined in the database
+  [PASS] process runs unprivileged
+  [PASS] authenticated question answered with a citation: policy-leave#1@2026-06-01
+
+== Step 4: restart is idempotent
+  [PASS] migration re-run applies nothing
+  [PASS] re-seeding wrote no duplicate chunks
+
+Deployment checks: 7/7 passed. Stop with: python labs/lab05-deployment/lab.py --down

@@ -25,7 +25,7 @@ NOT_RUNNABLE = {
     "14.2": (
         "listings/ch14/listing_14_2.sql",
         "needs a PostgreSQL database with the pgvector extension. "
-        "Apply it with: psql -f listings/ch14/listing_14_2.sql",
+        "Run it with: python listings/ch14/verify_14_2.py <postgresql-url>",
     ),
     "21.1": (
         "listings/ch21/listing_21_1.jsonc",

@@ -1,0 +1,32 @@
+== Step 1: ingest
+  hr-salary-bands  inserted     chunks=1 
+  it-faq           inserted     chunks=2 
+  net-credentials  inserted     chunks=1 
+  policy-expenses  inserted     chunks=2 
+  policy-leave-v6  inserted     chunks=1 
+  policy-leave     inserted     chunks=3 
+  vendor-notice    inserted     chunks=1 
+  wiki-vpn         quarantined  chunks=0 assistant-directed note, tool or retrieval coercion
+
+== Step 2: structure-aware chunks keep tables and heading paths
+  policy-expenses#0@2026-02-15  [Travel and Expenses Policy > Expenses > Meals]  The daily meal allowance during business travel is
+  policy-expenses#1@2026-02-15  [Travel and Expenses Policy > Expenses > Claims]  Expense claims must be submitted within 30 days us
+
+== Step 3: retrieval evaluation (recall@5, MRR)
+  semantic      recall@5=0.70  MRR=0.73
+  keyword       recall@5=0.80  MRR=0.83
+  fused         recall@5=0.90  MRR=0.76
+  fused+rerank  recall@5=0.90  MRR=0.91
+  not first after rerank: 'time off left at the end of the year' (rank 8)
+
+== Step 4: filters run inside retrieval
+  alice: docs=['noise-005', 'noise-021', 'noise-038', 'noise-039', 'noise-043', 'noise-045', 'noise-053', 'noise-091', 'noise-116', 'noise-117'] acl_filtered=1
+  sam: docs=['hr-salary-bands', 'noise-021', 'noise-038', 'noise-039', 'noise-043', 'noise-045', 'noise-053', 'noise-091', 'noise-116', 'noise-117'] acl_filtered=0
+  superseded excluded: True (status_filtered=1)
+
+== Step 5: citation verification
+  answer: Up to five days of unused annual leave may be carried over to the next year with manager approval.
+  cites:  ['policy-leave#1@2026-06-01']
+  good answer problems: []
+  appended claim:       ["sentence not supported by cited passages: 'Contractors are excluded.'"]
+  stale citation:       ["citations not in context: ['policy-leave-v6#0@2024-01-10']", "sentence not supported by cited passages: 'Up to five days of unused annual leave may be carried over to the next year with manager approval.'"]

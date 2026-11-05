@@ -33,8 +33,8 @@ def run_listing(number: str) -> str:
     return proc.stdout
 
 
-def test_the_book_has_forty_nine_runnable_listings():
-    assert len(LISTINGS) == 49
+def test_the_book_has_fifty_two_runnable_listings():
+    assert len(LISTINGS) == 52
     assert set(NOT_RUNNABLE) == {"14.2", "21.1", "44.1"}
 
 
@@ -384,3 +384,29 @@ def test_54_1_reports_hardening_then_continuous():
     assert "'level': 'L2'" in first
     assert "'phase': 'continuous'" in second
     assert "'level': 'L5'" in second
+
+
+def test_7_1_sizes_weights_kv_cache_and_concurrency():
+    out = run_listing("7.1")
+    assert "8B-class: KV cache 128 KiB/token" in out
+    assert "70B-class: KV cache 320 KiB/token" in out
+    assert "8B-class fp16 on 1 x 24 GB GPU: 5 x 8k sequences fit" in out
+    assert "70B-class fp16 on 1 x 80 GB GPU: does not fit" in out
+    assert "70B-class int4 on 1 x 80 GB GPU: 13 x 8k sequences" in out
+
+
+def test_18_2_accepts_clean_scan_and_routes_poor_scan():
+    out = run_listing("18.2")
+    assert "clean scan: route=accept invoice=INV-2291 lines=2" in out
+    assert "poor scan: route=review" in out
+    assert "total: low OCR confidence 0.61" in out
+    assert "total: not a number '12B.00'" in out
+
+
+def test_43_2_finds_threat_model_gaps_and_residual_risk():
+    out = run_listing("43.2")
+    assert "4 components, 14 component-category pairs, 12 threats" in out
+    assert "ingestion: no threat recorded for tampering" in out
+    assert "ingestion/elevation: no control" in out
+    assert out.count("residual medium -> security owner") == 2
+    assert "OWASP mapping for poisoning: LLM05" in out
