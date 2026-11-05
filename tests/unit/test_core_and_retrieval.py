@@ -131,3 +131,32 @@ def test_upsert_is_idempotent_and_replaces_on_change():
 def test_user_with_no_groups_sees_nothing():
     st, emb = _store_with(Document("pub", "Leave", "Five days.", frozenset({"all-staff"})))
     assert st.search_keyword("five days", frozenset(), 10).ranked == []
+
+
+# ----------------------------------------------------- context and citations
+def _chunk(text, heading="Leave > Carry-over", source="policy/leave"):
+    from atlas.retrieval.text import Chunk
+    return Chunk("c1", "policy-leave", 'Leave "Policy"', heading, text, 1, "current", source,
+                 "2026-06-01")
+
+
+def test_context_attributes_are_escaped_so_headings_cannot_break_tags():
+    from atlas.retrieval.context import assemble
+    ctx = assemble([_chunk("Five days carry over.", heading='A > B" injected="x')], "q?", 3000)
+    assert 'injected="x"' not in ctx.text and "&gt;" in ctx.text and "&quot;" in ctx.text
+
+
+def test_untrusted_passages_are_tagged_and_flagged():
+    from atlas.retrieval.context import assemble
+    ctx = assemble([_chunk("Vendor note.", source="web/vendor")], "q?", 3000)
+    assert "<UNTRUSTED" in ctx.text and ctx.untrusted
+
+
+def test_an_appended_unsupported_sentence_fails_citation_verification():
+    from atlas.retrieval.context import verify_citations
+    c = _chunk("Up to five days of unused annual leave may be carried over with approval.")
+    good = {"answer": "Up to five days of unused annual leave may be carried over with approval.",
+            "citations": [c.label], "supported": True}
+    assert verify_citations(good, {c.label: c}) == []
+    bad = {**good, "answer": good["answer"] + " Contractors receive double the allowance."}
+    assert any("not supported" in p for p in verify_citations(bad, {c.label: c}))

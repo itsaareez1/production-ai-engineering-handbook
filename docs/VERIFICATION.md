@@ -52,8 +52,8 @@ Date: 5 November 2026. Machine: macOS 26.4.1 on Apple silicon.
 | Check | Result |
 |---|---|
 | `flake8` (atlas, tests, labs, listings, run.py) | **0 findings** |
-| Test suite, offline | **190 passed, 6 skipped** (the 6 are the Postgres integration tests) |
-| Test suite with `ATLAS_TEST_DATABASE_URL` set | **196 passed** |
+| Test suite, offline | **195 passed, 6 skipped** (the 6 are the Postgres integration tests) |
+| Test suite with `ATLAS_TEST_DATABASE_URL` set | **201 passed** |
 | Runnable book listings (`run.py --all`) | **52 of 52 ran successfully** |
 | Listing 14.2 on PostgreSQL 16 + pgvector 0.8.7 | **2 of 2 checks passed** |
 | Listing 21.1 structural check | **23 of 23 checks passed** |
@@ -128,6 +128,10 @@ and fixed more, each now covered by a test or a lab check:
   refused; at least 32 characters required);
 - Listing 14.2's run instructions (`psql -f`) could not execute the
   parameterized query (replaced by `verify_14_2.py`).
+- the security review found that an ingest caller could label a
+  document with a trusted source and so skip the injection scan (the
+  API now refuses trusted sources), and that the egress check accepted
+  any port (now only the default https port).
 
 ## Full output of `python run.py --all`
 

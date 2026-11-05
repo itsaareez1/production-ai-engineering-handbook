@@ -32,6 +32,7 @@ from atlas.core.identity import DIRECTORY, AuthError, Identity, issue_token, ver
 from atlas.core.observability import configure_logging, request_id_var
 from atlas.corpus import load_corpus
 from atlas.retrieval.text import Document
+from atlas.security.controls import tier_of
 from atlas.service import Atlas
 from atlas.validation import ANSWER_SCHEMA, schema_errors, semantic_errors
 
@@ -146,6 +147,11 @@ def create_app(atlas: Atlas | None = None) -> FastAPI:
 
     @app.post("/v1/documents", status_code=201)
     def ingest(doc: DocumentIn, who: Identity = Depends(role("ingest"))) -> dict:
+        # The source decides the trust tier, and trusted sources skip the
+        # injection scan, so a caller must not be able to claim one.
+        # Trusted content arrives through internal connectors only.
+        if tier_of(doc.source) == "trusted":
+            raise HTTPException(403, "trusted sources cannot be ingested through the API")
         r = svc.ingest(Document(**{**doc.model_dump(), "acl": frozenset(doc.acl)}))
         if r.outcome == "rejected":
             raise HTTPException(422, {"doc_id": r.doc_id, "reasons": r.reasons})

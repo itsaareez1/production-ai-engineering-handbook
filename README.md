@@ -53,7 +53,7 @@ and review it for production.
 | Security | Injection scanning and quarantine at ingestion; untrusted-content tags; keyed redaction; egress allowlist with resolved-IP checks; signed tokens; role checks; no stack traces to clients |
 | Evaluation | Versioned golden set; deterministic graders; Wilson intervals; judge calibration with Cohen's kappa; paired per-category regression gate |
 | Operations | Validated configuration; JSON logs; traces with required attributes; Prometheus metrics; SQL migrations; Docker image running unprivileged; Compose stack |
-| Tests | 196 tests: unit, security, API, listings, and PostgreSQL integration |
+| Tests | 201 tests: unit, security, API, listings, and PostgreSQL integration |
 
 ## Architecture overview
 
@@ -153,7 +153,7 @@ docker compose up --build                  # full stack: db, migrate, app, cache
 ## Running tests
 
 ```bash
-make test                      # 190 passed, 6 skipped (integration tests need a database)
+make test                      # 195 passed, 6 skipped (integration tests need a database)
 make verify                    # lint + tests + all listings + offline labs
 make verify-db                 # with ATLAS_TEST_DATABASE_URL set: integration tests, Listing 14.2
 make verify-docker             # Lab 5: build and verify the Compose stack

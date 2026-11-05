@@ -103,12 +103,19 @@ def check_egress(url: str, allowlist: list[str], resolver: Resolver | None = Non
     """Validate a URL against the allowlist and the resolved addresses.
 
     Returns the URL to fetch (query string stripped by default so a model
-    cannot smuggle data out in parameters). Raises EgressDenied."""
+    cannot smuggle data out in parameters). Raises EgressDenied.
+
+    The check resolves the host once. DNS can change between this check
+    and the fetch (rebinding), so the fetcher must connect to an address
+    this check accepted, or the egress proxy must enforce the same rule
+    at connection time (Chapter 43); this function alone is not enough."""
     parts = urlsplit(url)
     if parts.scheme != "https":
         raise EgressDenied("only https is allowed")
     if parts.username or parts.password:
         raise EgressDenied("credentials in URL")
+    if parts.port not in (None, 443):
+        raise EgressDenied("only the default https port is allowed")
     host = (parts.hostname or "").lower()
     if host not in {h.lower() for h in allowlist}:
         raise EgressDenied(f"host {host!r} not in allowlist")

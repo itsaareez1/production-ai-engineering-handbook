@@ -8,10 +8,10 @@ Generated 2026-11-05 by `labs/lab07-production-readiness/lab.py` from executed c
 
 | Area | Check | Result | Evidence |
 |---|---|---|---|
-| Code | unit, security and integration tests | PASS | 190 passed, 6 skipped in 2.98s |
+| Code | unit, security and integration tests | PASS | 195 passed, 6 skipped in 2.87s |
 | Code | every runnable book listing executes | PASS | RESULT: all listings ran successfully |
 | Code | lint (flake8) | PASS | 0 findings |
-| Secrets | no credential-shaped strings in tracked files | PASS | 96 files scanned, 0 hits [] |
+| Secrets | no credential-shaped strings in tracked files | PASS | 152 files scanned, 0 hits [] |
 | Secrets | .env.example holds placeholders only | PASS | 5 secret-bearing entries, all placeholders |
 | Config | production refuses missing or placeholder secrets | PASS | refused 2 of 2 unsafe configurations |
 | Config | development token endpoint is off in production | PASS | POST /auth/dev-token -> 404 |
